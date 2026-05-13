@@ -1,0 +1,15 @@
+[package]
+name = "aethel_mlx_runtime"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["memristor-kv", "memristor-routing"]
+## KV-cache bookkeeping and optional decompress API (Phase 2).
+memristor-kv = []
+## RouteDecision + InferenceExecutor scaffold (Phase 3 surface, optional slim builds).
+memristor-routing = []
+
+[dependencies]
+memristor = { path = "../memristor", default-features = false, features = ["memristor-sim"] }
+
