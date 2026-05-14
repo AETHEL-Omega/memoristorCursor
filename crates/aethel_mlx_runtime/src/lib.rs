@@ -7,6 +7,8 @@ pub mod route_engine;
 #[cfg(feature = "memristor-routing")]
 pub mod inference_executor;
 #[cfg(feature = "memristor-routing")]
+pub mod coreml_backend;
+#[cfg(feature = "memristor-routing")]
 pub mod mlx_backend;
 #[cfg(feature = "memristor-routing")]
 pub mod m5_compute;
@@ -20,6 +22,10 @@ pub use inference_executor::{ExecuteError, ExecuteOutcome, InferenceExecutor};
 #[cfg(feature = "memristor-routing")]
 pub use route_engine::{
     MemoryGovernor, RouteDecision, RouteEngine, RuntimeState, TaskReq, TaskType,
+};
+#[cfg(feature = "memristor-routing")]
+pub use coreml_backend::{
+    clear_coreml_handler, execute_coreml, has_coreml_handler, set_coreml_handler,
 };
 #[cfg(feature = "memristor-routing")]
 pub use mlx_backend::{clear_mlx_handler, execute_mlx, has_mlx_handler, set_mlx_handler};

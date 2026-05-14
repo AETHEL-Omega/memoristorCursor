@@ -89,7 +89,7 @@ impl InferenceExecutor {
         let route = self.route_engine.choose_route(req, state);
         let (output, matvec_device) = match route {
             RouteDecision::Mlx => (crate::mlx_backend::execute_mlx(&req.input), None),
-            RouteDecision::CoreMl => (req.input.clone(), None),
+            RouteDecision::CoreMl => (crate::coreml_backend::execute_coreml(&req.input), None),
             RouteDecision::Hybrid { digital_weight } => (
                 self.route_engine
                     .execute_hybrid(&req.input, digital_weight)?,
