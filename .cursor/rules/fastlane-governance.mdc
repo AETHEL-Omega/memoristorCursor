@@ -1,0 +1,12 @@
+---
+description: Fast-lane governance for safe, high-velocity AI-assisted coding
+alwaysApply: true
+---
+
+# Fastlane Governance
+
+- Default to small, targeted changes with clear scope.
+- Prefer fast validation loops first; trigger deeper checks on high-risk edits.
+- Never hide breaking behavior changes in broad refactors.
+- Verify APIs/symbols from local code, not assumptions.
+- Require explicit rationale for dependency and critical-path changes.

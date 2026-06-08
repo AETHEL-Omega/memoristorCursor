@@ -1,0 +1,93 @@
+name: fastlane
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  classify-risk:
+    name: fastlane / classify-risk
+    runs-on: ubuntu-latest
+    outputs:
+      risk: ${{ steps.classify.outputs.risk }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch base for PR comparison
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: git fetch origin "${BASE_REF}" --depth=250
+
+      - name: Classify risk
+        id: classify
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          FASTLANE_BASE_REF: ${{ github.base_ref }}
+          FASTLANE_PUSH_BEFORE: ${{ github.event.before }}
+          FASTLANE_PUSH_AFTER: ${{ github.event.after }}
+        run: python3 .github/scripts/classify_risk.py
+
+  quick-checks:
+    name: fastlane / quick-checks
+    runs-on: ubuntu-latest
+    needs: [classify-risk]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Flutter
+        if: hashFiles('pubspec.yaml') != ''
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Quick checks (speed-first)
+        run: |
+          set -euo pipefail
+          if [ -f Makefile ] && make -n quick >/dev/null 2>&1; then
+            make quick
+          elif [ -f Cargo.toml ]; then
+            cargo check
+          elif [ -f package.json ]; then
+            npm run -s lint --if-present
+            npm test --if-present --silent
+          elif [ -f pubspec.yaml ]; then
+            flutter analyze
+          elif [ -f pyproject.toml ] || [ -f requirements.txt ]; then
+            python3 -m pytest -q
+          else
+            echo "fastlane: no standard quick targets found; add Makefile quick, or CI will stay green."
+          fi
+
+  deep-checks:
+    name: fastlane / deep-checks
+    runs-on: ubuntu-latest
+    needs: [classify-risk]
+    if: needs.classify-risk.outputs.risk == 'high'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Flutter
+        if: hashFiles('pubspec.yaml') != ''
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Deep checks (high-risk only)
+        run: |
+          set -euo pipefail
+          if [ -f Makefile ] && make -n ci >/dev/null 2>&1; then
+            make ci
+          elif [ -f Cargo.toml ]; then
+            cargo test --workspace
+          elif [ -f package.json ]; then
+            npm run -s build --if-present
+            npm test --if-present
+          elif [ -f pubspec.yaml ]; then
+            flutter test
+          elif [ -f pyproject.toml ] || [ -f requirements.txt ]; then
+            python3 -m pytest
+          else
+            echo "fastlane: no deep targets; extend workflow for this repo."
+          fi

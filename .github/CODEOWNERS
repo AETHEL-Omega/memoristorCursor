@@ -1,0 +1,9 @@
+# Example ownership map (adjust per repo)
+
+* @team-core
+
+# Critical paths
+/auth/ @team-security @team-core
+/security/ @team-security
+/policy/ @team-security
+/native/rust/src/api/bridge.rs @team-platform @team-security

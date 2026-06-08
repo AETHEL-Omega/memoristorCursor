@@ -1,0 +1,23 @@
+{
+  "highRiskThreshold": 5,
+  "fileCountHighRisk": 10,
+  "criticalPathPatterns": [
+    "auth",
+    "policy",
+    "bridge",
+    "security",
+    "payment"
+  ],
+  "dependencyFiles": [
+    "Cargo.toml",
+    "Cargo.lock",
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "pubspec.yaml",
+    "pubspec.lock",
+    "pyproject.toml",
+    "requirements.txt"
+  ]
+}
