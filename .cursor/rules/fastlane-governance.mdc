@@ -10,3 +10,13 @@ alwaysApply: true
 - Never hide breaking behavior changes in broad refactors.
 - Verify APIs/symbols from local code, not assumptions.
 - Require explicit rationale for dependency and critical-path changes.
+
+## Delivery loop (required)
+
+Every feature or bugfix must finish on `main`, not stop on a local or feature branch.
+
+1. **Commit** — one logical change per commit; message explains what and why.
+2. **Push** — publish the branch to `origin` immediately after commit.
+3. **Merge to `main`** — open a PR when branch protection requires it; merge once fastlane checks pass. Direct push to `main` only when protection allows and the change is small.
+
+Do not consider work done until `main` on the remote has the change.

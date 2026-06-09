@@ -1,0 +1,9 @@
+# Per-repo fastlane config — https://github.com/AETHEL-Omega/ai-fastlane-governance
+governance_version: 2
+
+# Optional explicit commands (override auto-detection when set):
+# quick_command: make quick
+# deep_command: make ci
+
+# Optional stack hint for setup steps: rust | flutter | node | python
+# stack: rust
