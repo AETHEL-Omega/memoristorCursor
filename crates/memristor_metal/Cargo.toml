@@ -1,0 +1,18 @@
+[package]
+name = "memristor_metal"
+version = "0.1.0"
+edition = "2021"
+description = "Metal compute MVP: crossbar matvec with MTLStorageModeShared"
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+memristor-parallel = ["memristor/memristor-parallel"]
+
+[target.'cfg(target_os = "macos")'.dependencies]
+metal = "0.33"
+memristor = { path = "../memristor" }
+
+[dev-dependencies]
+memristor = { path = "../memristor", features = ["memristor-parallel"] }
