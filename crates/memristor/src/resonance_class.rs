@@ -37,22 +37,34 @@ impl ResonanceClass {
 
     /// Check if this is a semantic resonance class
     pub fn is_semantic(&self) -> bool {
-        matches!(self, ResonanceClass::Semantic | ResonanceClass::Conceptual | ResonanceClass::Associative)
+        matches!(
+            self,
+            ResonanceClass::Semantic | ResonanceClass::Conceptual | ResonanceClass::Associative
+        )
     }
 
     /// Check if this is a temporal resonance class
     pub fn is_temporal(&self) -> bool {
-        matches!(self, ResonanceClass::Temporal | ResonanceClass::Sequential | ResonanceClass::Causal)
+        matches!(
+            self,
+            ResonanceClass::Temporal | ResonanceClass::Sequential | ResonanceClass::Causal
+        )
     }
 
     /// Check if this is a spatial resonance class
     pub fn is_spatial(&self) -> bool {
-        matches!(self, ResonanceClass::Spatial | ResonanceClass::Hierarchical | ResonanceClass::Network)
+        matches!(
+            self,
+            ResonanceClass::Spatial | ResonanceClass::Hierarchical | ResonanceClass::Network
+        )
     }
 
     /// Check if this is an emotional resonance class
     pub fn is_emotional(&self) -> bool {
-        matches!(self, ResonanceClass::Emotional | ResonanceClass::Affective | ResonanceClass::Motivational)
+        matches!(
+            self,
+            ResonanceClass::Emotional | ResonanceClass::Affective | ResonanceClass::Motivational
+        )
     }
 }
 

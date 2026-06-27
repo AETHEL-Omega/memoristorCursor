@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/memristor",
+    "crates/memristor_metal",
     "crates/aethel_mlx_runtime",
 ]
 resolver = "2"

@@ -139,7 +139,7 @@ mod tests {
     fn test_from_memristor_cell() {
         let cell = MemristorCell::new(0.01, 0.0);
         let relation = MemristiveRelation::from_memristor_cell(&cell);
-        
+
         assert_eq!(relation.conductance, cell.conductance());
         assert_eq!(relation.activation_energy, cell.voltage_threshold());
         assert_eq!(relation.decay_rate, cell.decay_rate());
@@ -150,9 +150,9 @@ mod tests {
     fn test_activate_increases_conductance() {
         let mut relation = MemristiveRelation::new();
         let original_conductance = relation.conductance;
-        
+
         relation.activate();
-        
+
         assert!(relation.conductance > original_conductance);
         assert_eq!(relation.activation_count, 1);
     }
@@ -162,9 +162,9 @@ mod tests {
         let mut relation = MemristiveRelation::new();
         relation.conductance = 10.0;
         let original_conductance = relation.conductance;
-        
+
         relation.decay(1.0);
-        
+
         assert!(relation.conductance < original_conductance);
     }
 
@@ -172,7 +172,7 @@ mod tests {
     fn test_resonance_in_range() {
         let relation = MemristiveRelation::new();
         let resonance = relation.compute_resonance(0.0, 1.0);
-        
+
         assert!(resonance >= 0.0);
         assert!(resonance <= 1.0);
     }

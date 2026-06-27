@@ -76,7 +76,11 @@ impl InferenceExecutor {
     }
 
     /// Run routing + execution. `Mlx` / `CoreMl` passthrough stubs return a copy of input.
-    pub fn execute(&mut self, req: &TaskReq, state: &RuntimeState) -> Result<Vec<f32>, ExecuteError> {
+    pub fn execute(
+        &mut self,
+        req: &TaskReq,
+        state: &RuntimeState,
+    ) -> Result<Vec<f32>, ExecuteError> {
         Ok(self.execute_detailed(req, state)?.output)
     }
 
@@ -334,10 +338,7 @@ mod tests {
             outcome.metal_kernel,
             Some(memristor_metal::MetalKernelTier::Simdgroup)
         );
-        let cpu_ref = ex
-            .route_engine()
-            .execute_cascade(&input, 2)
-            .unwrap();
+        let cpu_ref = ex.route_engine().execute_cascade(&input, 2).unwrap();
         assert_eq!(outcome.output.len(), n);
         for i in 0..n {
             assert!(

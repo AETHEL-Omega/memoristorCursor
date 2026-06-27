@@ -1,4 +1,5 @@
 use crate::memristor::crossbar::{Crossbar, CrossbarError};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -42,6 +43,107 @@ impl OmegaVChip {
         &mut self.crossbar
     }
 
+    /// Gecachte Leitwert‑Matrix des Chips (`G_ij=1/R_ij`) — direkt für Metal / NEON‑Pfade.
+    pub fn conductance_matrix(&self) -> &[f32] {
+        self.crossbar.conductance_matrix()
+    }
+
+    /// Epoch der Leitwert‑Matrix (für bedingten GPU‑Upload).
+    pub fn conductance_epoch(&self) -> u64 {
+        self.crossbar.conductance_epoch()
+    }
+
+    /// Alle Zellwiderstände setzen (ein [`Self::conductance_epoch`]-Bump). Siehe [`Crossbar::fill_resistance`].
+    pub fn fill_resistance<F: FnMut(usize, usize) -> f32>(&mut self, f: F) {
+        self.crossbar.fill_resistance(f);
+    }
+
+    /// Wie [`Self::fill_resistance`], Widerstandsberechnung parallel (Feature **`memristor-parallel`**).
+    #[cfg(feature = "memristor-parallel")]
+    pub fn fill_resistance_par<F>(&mut self, f: F)
+    where
+        F: Fn(usize, usize) -> f32 + Sync,
+    {
+        self.crossbar.fill_resistance_par(f);
+    }
+
+    /// Ein Zeitschritt **Programmierung** auf dem Crossbar: `V_{ij} = V_row[i] − V_col[j]` pro Kreuzung.
+    pub fn pulse_programming(&mut self, row_v: &[f32], col_v: &[f32]) -> OmegaVChipResult<()> {
+        self.crossbar.pulse_rows_cols(row_v, col_v)?;
+        Ok(())
+    }
+
+    /// Wie [`Self::pulse_programming`], mit explizitem RNG (bitweise reproduzierbar).
+    pub fn pulse_programming_with_rng<R: Rng + ?Sized>(
+        &mut self,
+        row_v: &[f32],
+        col_v: &[f32],
+        rng: &mut R,
+    ) -> OmegaVChipResult<()> {
+        self.crossbar.pulse_rows_cols_with_rng(row_v, col_v, rng)?;
+        Ok(())
+    }
+
+    /// Wie [`Self::pulse_programming`], mit Sneak‑Kopplung (siehe [`Crossbar::junction_voltage`]).
+    pub fn pulse_programming_sneak(
+        &mut self,
+        row_v: &[f32],
+        col_v: &[f32],
+        sneak_strength: f32,
+    ) -> OmegaVChipResult<()> {
+        self.crossbar
+            .pulse_rows_cols_sneak(row_v, col_v, sneak_strength)?;
+        Ok(())
+    }
+
+    pub fn pulse_programming_sneak_with_rng<R: Rng + ?Sized>(
+        &mut self,
+        row_v: &[f32],
+        col_v: &[f32],
+        sneak_strength: f32,
+        rng: &mut R,
+    ) -> OmegaVChipResult<()> {
+        self.crossbar
+            .pulse_rows_cols_sneak_with_rng(row_v, col_v, sneak_strength, rng)?;
+        Ok(())
+    }
+
+    /// Eine Zelle **1/2‑halbselektiv** schreiben ([`Crossbar::pulse_single_cell_half_select`]).
+    pub fn pulse_single_cell_select(
+        &mut self,
+        row: usize,
+        col: usize,
+        v_prog: f32,
+    ) -> OmegaVChipResult<()> {
+        self.crossbar
+            .pulse_single_cell_half_select(row, col, v_prog)?;
+        Ok(())
+    }
+
+    pub fn pulse_single_cell_select_with_rng<R: Rng + ?Sized>(
+        &mut self,
+        row: usize,
+        col: usize,
+        v_prog: f32,
+        rng: &mut R,
+    ) -> OmegaVChipResult<()> {
+        self.crossbar
+            .pulse_single_cell_half_select_with_rng(row, col, v_prog, rng)?;
+        Ok(())
+    }
+
+    pub fn pulse_single_cell_select_sneak(
+        &mut self,
+        row: usize,
+        col: usize,
+        v_prog: f32,
+        sneak_strength: f32,
+    ) -> OmegaVChipResult<()> {
+        self.crossbar
+            .pulse_single_cell_half_select_sneak(row, col, v_prog, sneak_strength)?;
+        Ok(())
+    }
+
     /// Digital-ish path: same dimensions as analog, deterministic given fixed resistances.
     pub fn infer_digital(&self, input: &[f32]) -> OmegaVChipResult<Vec<f32>> {
         self.infer(input)
@@ -83,14 +185,9 @@ impl OmegaVChip {
                 got: input.len(),
             });
         }
-        if depth == 0 {
-            return Ok(input.to_vec());
-        }
-        let mut x = input.to_vec();
-        for _ in 0..depth {
-            x = self.infer(&x)?;
-        }
-        Ok(x)
+        self.crossbar
+            .forward_cascade(input, depth)
+            .map_err(OmegaVChipError::from)
     }
 }
 
@@ -108,6 +205,50 @@ impl WindsurfCascade for OmegaVChip {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fill_resistance_on_chip_updates_epoch_once() {
+        let mut chip = OmegaVChip::new(3, 0.001, 0.0);
+        let e0 = chip.conductance_epoch();
+        chip.fill_resistance(|i, j| 1.0 + 0.1 * (i + j) as f32);
+        assert!(chip.conductance_epoch() > e0);
+        assert!((chip.crossbar_mut().resistance_at(1, 2).unwrap() - 1.3).abs() < 1e-4);
+    }
+
+    #[cfg(feature = "memristor-parallel")]
+    #[test]
+    fn fill_resistance_par_matches_fill_resistance() {
+        let n = 32usize;
+        let mut a = OmegaVChip::new(n, 0.001, 0.0);
+        let mut b = OmegaVChip::new(n, 0.001, 0.0);
+        a.fill_resistance(|i, j| 0.9 + 0.001 * ((i * n + j) as f32));
+        b.fill_resistance_par(|i, j| 0.9 + 0.001 * ((i * n + j) as f32));
+        assert_eq!(a.conductance_matrix(), b.conductance_matrix());
+    }
+
+    #[test]
+    fn pulse_programming_routes_to_crossbar() {
+        let mut chip = OmegaVChip::new(2, 0.04, 0.0);
+        let before = chip.crossbar_mut().resistance_at(0, 0).unwrap();
+        chip.pulse_programming(&[0.9, 0.9], &[0.0, 0.0]).unwrap();
+        let after = chip.crossbar_mut().resistance_at(0, 0).unwrap();
+        assert!(
+            (after - before).abs() > 1e-5,
+            "expected resistance drift, before={before} after={after}"
+        );
+        let input = [1.0_f32, 0.0];
+        let _ = chip.infer_analog(&input).unwrap();
+    }
+
+    #[test]
+    fn pulse_single_cell_select_and_sneak_smoke() {
+        let mut chip = OmegaVChip::new(3, 0.02, 0.0);
+        chip.pulse_single_cell_select(1, 2, 1.5).unwrap();
+        chip.pulse_programming_sneak(&[1.0, 0.0, 0.0], &[0.0, 0.0, -0.5], 0.25)
+            .unwrap();
+        chip.pulse_single_cell_select_sneak(0, 0, 0.9, 0.1).unwrap();
+        let _ = chip.infer_analog(&[0.1, 0.2, 0.3]).unwrap();
+    }
 
     #[test]
     fn infer_rejects_wrong_length() {

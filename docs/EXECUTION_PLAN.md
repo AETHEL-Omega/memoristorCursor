@@ -22,5 +22,7 @@ cargo test --workspace
 ```
 
 ## Phase 4 (optional next)
-- Criterion benchmarks behind `memristor-bench` (adds dev-deps when enabled).
-- Example binary: `cargo run -p memristor --example windsurf_cascade` *(done)*.
+- Criterion benchmarks behind `memristor-bench` (adds dev-deps when enabled). *(done)*
+- Example binary: `cargo run -p memristor --example windsurf_cascade` *(done)*
+- Doc [M5_APPLE_SILICON.md](M5_APPLE_SILICON.md): UMA / CPU vs GPU / ANE, Roadmap Metal & Core ML.
+- Optional CPU scaling: feature `memristor-parallel` (Rayon rows, `n ≥ 64`).

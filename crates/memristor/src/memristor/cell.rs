@@ -242,9 +242,6 @@ mod tests {
         mid.apply_pulse_with_rng(0.3, &mut StdRng::from_seed([1u8; 32]));
         let dr_mid = (mid.resistance() - r1).abs();
 
-        assert!(
-            dr_mid > dr_hi * 1.5,
-            "edge dr {dr_hi} mid dr {dr_mid}"
-        );
+        assert!(dr_mid > dr_hi * 1.5, "edge dr {dr_hi} mid dr {dr_mid}");
     }
 }

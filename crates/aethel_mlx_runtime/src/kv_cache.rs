@@ -90,7 +90,9 @@ mod tests {
     fn compress_updates_session_budget() {
         let mut manager = MemristorKvCacheManager::new(4);
         let payload = vec![0.25_f32; 4];
-        manager.compress_kv(7, &payload).expect("compression should pass");
+        manager
+            .compress_kv(7, &payload)
+            .expect("compression should pass");
         assert_eq!(manager.session_budget(7), Some(16));
     }
 

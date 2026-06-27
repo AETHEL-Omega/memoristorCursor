@@ -20,9 +20,13 @@ pub enum RouteDecision {
     Mlx,
     CoreMl,
     Memristor,
-    Hybrid { digital_weight: f32 },
+    Hybrid {
+        digital_weight: f32,
+    },
     /// Multi-pass virtual crossbar (Windsurf Cascade prototype).
-    WindsurfCascade { depth: usize },
+    WindsurfCascade {
+        depth: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -63,6 +67,9 @@ pub struct TaskReq {
     /// When `Some(d)` with `d > 0` for [`TaskType::Embed`] or [`TaskType::ShortGeneration`],
     /// routes to [`RouteDecision::WindsurfCascade`].
     pub cascade_depth: Option<usize>,
+    /// Unabhängige Matvec‑Wiederholungen mit gleichem `input` (Metal: ein GPU‑Sync via
+    /// [`memristor_metal::MetalRunner::forward_repeated_into`] / cascade‑Variante).
+    pub matvec_repeats: usize,
 }
 
 impl TaskReq {
@@ -72,12 +79,19 @@ impl TaskReq {
             input,
             session_id,
             cascade_depth: None,
+            matvec_repeats: 1,
         }
     }
 
     /// Chaining helper for cascade routing experiments.
     pub fn with_cascade_depth(mut self, depth: usize) -> Self {
         self.cascade_depth = Some(depth);
+        self
+    }
+
+    /// Mehrfach dasselbe Matvec/Cascade auf dem Chip (siehe [`InferenceExecutor`]).
+    pub fn with_matvec_repeats(mut self, repeats: usize) -> Self {
+        self.matvec_repeats = repeats;
         self
     }
 }
@@ -89,6 +103,7 @@ impl fmt::Debug for TaskReq {
             .field("input_len", &self.input.len())
             .field("session_id", &self.session_id)
             .field("cascade_depth", &self.cascade_depth)
+            .field("matvec_repeats", &self.matvec_repeats)
             .finish()
     }
 }
@@ -111,6 +126,12 @@ impl RouteEngine {
         self
     }
 
+    /// Setzt alle Zellen auf denselben Widerstand (ein `conductance_epoch`‑Bump).
+    pub fn with_uniform_resistance(mut self, resistance: f32) -> Self {
+        self.vchip.fill_resistance(|_, _| resistance);
+        self
+    }
+
     pub fn vchip_len(&self) -> usize {
         self.vchip.len()
     }
@@ -121,12 +142,7 @@ impl RouteEngine {
     pub fn choose_route(&self, req: &TaskReq, state: &RuntimeState) -> RouteDecision {
         let _ = state;
         if let Some(depth) = req.cascade_depth {
-            if depth > 0
-                && matches!(
-                    req.task_type,
-                    TaskType::Embed | TaskType::ShortGeneration
-                )
-            {
+            if depth > 0 && matches!(req.task_type, TaskType::Embed | TaskType::ShortGeneration) {
                 return RouteDecision::WindsurfCascade { depth };
             }
         }
@@ -155,7 +171,14 @@ impl RouteEngine {
         &mut self.vchip
     }
 
-    pub fn execute_memristor(&self, input: &[f32]) -> Result<Vec<f32>, memristor::services::vchip_api::OmegaVChipError> {
+    pub fn chip(&self) -> &OmegaVChip {
+        &self.vchip
+    }
+
+    pub fn execute_memristor(
+        &self,
+        input: &[f32],
+    ) -> Result<Vec<f32>, memristor::services::vchip_api::OmegaVChipError> {
         self.vchip.infer_analog(input)
     }
 
@@ -189,6 +212,7 @@ mod tests {
             input: vec![0.1; 8],
             session_id: 1,
             cascade_depth: None,
+            matvec_repeats: 1,
         };
         assert_eq!(
             engine.choose_route(&req, &RuntimeState::default()),
@@ -205,10 +229,26 @@ mod tests {
             input: vec![0.0; 3],
             session_id: 2,
             cascade_depth: None,
+            matvec_repeats: 1,
         };
         assert_eq!(
             engine.choose_route(&req, &RuntimeState::default()),
             RouteDecision::Memristor
+        );
+    }
+
+    #[test]
+    fn with_uniform_resistance_smoke() {
+        let mut engine = RouteEngine::new(4, 0.001, 0.0).with_uniform_resistance(2.5);
+        assert!(
+            (engine
+                .chip_mut()
+                .crossbar_mut()
+                .resistance_at(2, 3)
+                .unwrap()
+                - 2.5)
+                .abs()
+                < 1e-4
         );
     }
 

@@ -1,29 +1,19 @@
 //! Run (smoke / quick samples):  
 //! `cargo bench -p memristor --features memristor-bench -- --quick`
 
-use criterion::{
-    black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput,
-};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use memristor::memristor::crossbar::Crossbar;
 use memristor::services::vchip_api::OmegaVChip;
 
 fn uniform_crossbar(size: usize) -> Crossbar {
     let mut bar = Crossbar::new(size, 0.001, 0.0);
-    for i in 0..size {
-        for j in 0..size {
-            bar.set_resistance(i, j, 1.0).unwrap();
-        }
-    }
+    bar.fill_resistance(|_, _| 1.0);
     bar
 }
 
 fn uniform_chip(size: usize) -> OmegaVChip {
     let mut chip = OmegaVChip::new(size, 0.001, 0.0);
-    for i in 0..size {
-        for j in 0..size {
-            chip.crossbar_mut().set_resistance(i, j, 1.0).unwrap();
-        }
-    }
+    chip.fill_resistance(|_, _| 1.0);
     chip
 }
 
